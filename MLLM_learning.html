@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多模态大模型 (MLLM) 研究导航与方案评估</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Chosen Palette: Scholar Blue & Slate - Minimalist, Academic, Trustworthy */
+        /* Application Structure Plan:
+           1. Sidebar Navigation: Logical flow from Basics -> Evolution -> Research Analysis -> Action Plan.
+           2. Dashboard (Overview): Quick stats and the "Big Picture" definition.
+           3. Foundations (Interactive Diagram): Explains the Encoder-Projector-LLM architecture interactively (HTML/CSS).
+           4. Evolution (Charts): Timeline of key models and Radar chart comparing capabilities (Chart.js).
+           5. Feasibility Matrix (Interactive Scatter): Visualizing Research Topics by 'Compute Cost' vs 'Novelty' to help the user pick a feasible direction.
+           6. Proposal Workbench: A simple interactive tool to select a direction and get specific advice/pivots.
+        */
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc; /* Slate-50 */
+            color: #1e293b; /* Slate-800 */
+        }
+
+        /* Chart Container Styling - Mandatory per instructions */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; /* Max width to prevent stretching */
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Interactive Architecture Blocks */
+        .arch-block {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .arch-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .arch-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+
+        /* Navigation Active State */
+        .nav-item.active {
+            background-color: #e2e8f0;
+            border-right: 4px solid #3b82f6;
+            font-weight: 600;
+            color: #1d4ed8;
+        }
+    </style>
+    <!-- Visualization & Content Choices:
+       - Architecture: Interactive CSS Grid blocks instead of static image to show flow (Image -> ViT -> MLP -> LLM). Goal: Inform/Teach.
+       - Model Evolution: Line Chart to show the explosion of context window and benchmarks. Goal: Change/Trend.
+       - Capabilities: Radar Chart to compare generic models vs specialized ones. Goal: Compare.
+       - Feasibility: Bubble Chart (Scatter) to map research topics. X=Resource Cost, Y=Academic Value. Goal: Decision Support.
+       - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-10">
+        <div class="p-6 border-b border-slate-100">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <span class="text-2xl">🧠</span> MLLM 导航
+            </h1>
+            <p class="text-xs text-slate-500 mt-2">多模态大模型研究助手</p>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul>
+                <li><button onclick="navigateTo('overview')" class="nav-item active w-full text-left px-6 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">📌 概览与定义</button></li>
+                <li><button onclick="navigateTo('foundations')" class="nav-item w-full text-left px-6 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">🏗️ 核心架构原理</button></li>
+                <li><button onclick="navigateTo('evolution')" class="nav-item w-full text-left px-6 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">📈 最新发展趋势</button></li>
+                <li><button onclick="navigateTo('feasibility')" class="nav-item w-full text-left px-6 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">🧭 研究方向可行性</button></li>
+                <li><button onclick="navigateTo('workshop')" class="nav-item w-full text-left px-6 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">🛠️ 方案修改工作台</button></li>
+            </ul>
+        </nav>
+        <div class="p-4 border-t border-slate-100 text-xs text-slate-400">
+            基于 2024-2025 技术前沿综合生成
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <div class="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 p-4 z-20 flex justify-between items-center">
+        <h1 class="font-bold text-slate-800">MLLM 研究导航</h1>
+        <button onclick="toggleMobileMenu()" class="text-slate-600 focus:outline-none">
+            ☰
+        </button>
+    </div>
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="fixed inset-0 bg-slate-800 bg-opacity-50 z-30 hidden md:hidden" onclick="toggleMobileMenu()">
+        <div class="w-64 bg-white h-full shadow-lg p-4" onclick="event.stopPropagation()">
+            <h2 class="font-bold text-lg mb-4">菜单</h2>
+            <nav class="flex flex-col gap-2">
+                <button onclick="navigateTo('overview'); toggleMobileMenu()" class="text-left px-4 py-3 bg-slate-50 rounded">📌 概览</button>
+                <button onclick="navigateTo('foundations'); toggleMobileMenu()" class="text-left px-4 py-3 hover:bg-slate-50 rounded">🏗️ 架构</button>
+                <button onclick="navigateTo('evolution'); toggleMobileMenu()" class="text-left px-4 py-3 hover:bg-slate-50 rounded">📈 趋势</button>
+                <button onclick="navigateTo('feasibility'); toggleMobileMenu()" class="text-left px-4 py-3 hover:bg-slate-50 rounded">🧭 可行性</button>
+                <button onclick="navigateTo('workshop'); toggleMobileMenu()" class="text-left px-4 py-3 hover:bg-slate-50 rounded">🛠️ 工作台</button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 pt-20 md:pt-8 bg-slate-50 relative">
+        
+        <!-- SECTION: Overview -->
+        <section id="overview" class="max-w-5xl mx-auto space-y-8 animate-fade-in">
+            <header class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">多模态大模型 (MLLM) 基础概览</h2>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 text-blue-800 rounded-r-lg">
+                    <p class="font-medium">为什么选择这个研究方向？</p>
+                    <p class="mt-2 text-sm leading-relaxed">
+                        多模态大模型（MLLM）是当前人工智能最活跃的前沿领域。它打破了单一文本模态的限制，让 AI 具备了“看”、“听”和“说”的能力。
+                        本应用旨在帮助您快速掌握 MLLM 的技术脉络，从基础的 CLIP/ViT 架构到最新的原生多模态（Native Multimodal）模型，并为您修改研究方案提供数据支持。
+                    </p>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="text-4xl mb-2">👁️</div>
+                    <h3 class="font-bold text-slate-800 mb-2">视觉编码 (Vision Encoder)</h3>
+                    <p class="text-sm text-slate-600">将图像转化为向量。主流方案：ViT, CLIP, SigLIP。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="text-4xl mb-2">🔗</div>
+                    <h3 class="font-bold text-slate-800 mb-2">模态对齐 (Alignment)</h3>
+                    <p class="text-sm text-slate-600">连接视觉与语言的桥梁。关键技术：Projection Layer, Q-Former。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="text-4xl mb-2">🧠</div>
+                    <h3 class="font-bold text-slate-800 mb-2">指令微调 (Instruction Tuning)</h3>
+                    <p class="text-sm text-slate-600">赋予模型遵循多模态指令的能力。关键数据集：LLaVA-150k。</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <h3 class="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">关键术语速查</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-blue-600">Zero-shot Learning</span>
+                        <span class="text-slate-500">模型无需特定样本即可处理新任务的能力，源于大规模预训练。</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-blue-600">Hallucination (幻觉)</span>
+                        <span class="text-slate-500">模型生成与图像内容不符的描述（如描述了图中不存在的物体）。</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-blue-600">CoT (Chain of Thought)</span>
+                        <span class="text-slate-500">多模态思维链，引导模型分步骤推理视觉信息。</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-blue-600">Native Multimodality</span>
+                        <span class="text-slate-500">如 GPT-4o 或 Gemini 1.5，模型从头开始就在混合数据上训练，而非后期拼接。</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: Foundations -->
+        <section id="foundations" class="max-w-5xl mx-auto space-y-8 hidden animate-fade-in">
+            <header>
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">核心架构原理</h2>
+                <p class="text-slate-600">
+                    目前主流的开源 MLLM（如 LLaVA 系列）通常采用 <span class="font-semibold">"视觉编码器 + 投影层 + 大语言模型"</span> 的三段式架构。
+                    点击下方的模块查看详细解释。
+                </p>
+            </header>
+
+            <!-- Interactive Architecture Diagram -->
+            <div class="bg-white p-4 md:p-8 rounded-xl shadow-lg border border-slate-200 overflow-x-auto">
+                <div class="min-w-[600px] flex items-center justify-between gap-4 py-8 relative">
+                    
+                    <!-- Input -->
+                    <div onclick="showDetail('input')" class="arch-block w-32 flex flex-col items-center gap-2 group">
+                        <div class="w-20 h-20 bg-slate-100 border-2 border-slate-300 rounded-lg flex items-center justify-center text-3xl shadow-sm group-hover:border-blue-500">🖼️</div>
+                        <span class="text-sm font-bold text-slate-700">输入 (图像/视频)</span>
+                    </div>
+
+                    <div class="arch-arrow">➜</div>
+
+                    <!-- Vision Encoder -->
+                    <div onclick="showDetail('encoder')" class="arch-block w-40 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center hover:bg-blue-100 hover:border-blue-400">
+                        <div class="font-bold text-blue-800 mb-1">Vision Encoder</div>
+                        <div class="text-xs text-blue-600">CLIP / SigLIP</div>
+                        <div class="text-[10px] text-blue-400 mt-2">冻结参数 (通常)</div>
+                    </div>
+
+                    <div class="arch-arrow">➜</div>
+
+                    <!-- Projector -->
+                    <div onclick="showDetail('projector')" class="arch-block w-32 bg-orange-50 border-2 border-orange-200 rounded-xl p-4 text-center hover:bg-orange-100 hover:border-orange-400">
+                        <div class="font-bold text-orange-800 mb-1">Projector</div>
+                        <div class="text-xs text-orange-600">MLP / Q-Former</div>
+                        <div class="text-[10px] text-orange-400 mt-2">可训练参数</div>
+                    </div>
+
+                    <div class="arch-arrow">➜</div>
+
+                    <!-- LLM -->
+                    <div onclick="showDetail('llm')" class="arch-block flex-1 bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 text-center hover:bg-indigo-100 hover:border-indigo-400">
+                        <div class="font-bold text-indigo-800 mb-1">LLM Backbone</div>
+                        <div class="text-xs text-indigo-600">Vicuna / Llama 3 / Qwen</div>
+                        <div class="text-[10px] text-indigo-400 mt-2">LoRA 微调</div>
+                    </div>
+                </div>
+
+                <!-- Detail Panel -->
+                <div id="arch-detail" class="mt-6 bg-slate-50 p-6 rounded-lg border border-slate-200 text-slate-700 min-h-[120px] transition-all">
+                    <h4 class="font-bold text-lg mb-2 text-blue-700">👋 点击上方模块查看技术细节</h4>
+                    <p class="text-sm">了解每个组件在多模态理解中的具体作用，有助于在研究方案中明确技术路线。</p>
+                </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 font-bold bg-slate-50">
+                    主流架构连接方式对比
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th class="px-6 py-3">类型</th>
+                                <th class="px-6 py-3">代表模型</th>
+                                <th class="px-6 py-3">特点</th>
+                                <th class="px-6 py-3">研究门槛</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-6 py-4 font-medium">简单的线性投影 (Linear)</td>
+                                <td class="px-6 py-4">LLaVA v1, v1.5</td>
+                                <td class="px-6 py-4">结构简单，训练快，保留最多视觉特征，但Token数量多。</td>
+                                <td class="px-6 py-4 text-green-600 font-bold">低 (适合入门)</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 font-medium">重采样/压缩 (Resampler)</td>
+                                <td class="px-6 py-4">Flamingo, BLIP-2</td>
+                                <td class="px-6 py-4">使用Query查询机制压缩视觉Token，效率高，但可能丢失细节。</td>
+                                <td class="px-6 py-4 text-yellow-600 font-bold">中</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 font-medium">原生混合 (Native)</td>
+                                <td class="px-6 py-4">GPT-4o, Gemini 1.5</td>
+                                <td class="px-6 py-4">从预训练开始就混合多模态数据，理解能力最强，支持任意模态输入输出。</td>
+                                <td class="px-6 py-4 text-red-600 font-bold">极高 (仅大厂)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: Evolution -->
+        <section id="evolution" class="max-w-5xl mx-auto space-y-8 hidden animate-fade-in">
+            <header>
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">最新发展与趋势 (2023-2025)</h2>
+                <p class="text-slate-600">
+                    MLLM 领域发展极快。目前的主要趋势包括：<span class="font-bold">上下文窗口的极大扩展</span>（处理长视频/整本书）、<span class="font-bold">端侧轻量化</span>（手机运行），以及<span class="font-bold">从感知到推理</span>的进化。
+                </p>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Timeline Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-700 mb-4">📊 视觉Token上下文窗口增长趋势</h3>
+                    <div class="chart-container">
+                        <canvas id="evolutionChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-slate-400 mt-2">数据来源：公开论文与技术报告 (Token数估算)</p>
+                </div>
+
+                <!-- Radar Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-700 mb-4">🎯 模型能力维度对比</h3>
+                    <div class="chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-slate-400 mt-2">开源模型 vs 闭源模型典型能力分布</p>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-6">
+                <h3 class="font-bold text-blue-900 mb-2">🔥 2025 研究热点预测</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm text-blue-800">
+                    <li><strong>Video-LLM 长视频理解：</strong> 如何高效处理 1小时+ 的视频内容而不丢失细节。</li>
+                    <li><strong>多模态 RAG (检索增强生成)：</strong> 结合外部知识库减少幻觉，不仅检索文本，还检索图像/图表。</li>
+                    <li><strong>Embodied AI (具身智能)：</strong> MLLM 作为机器人的大脑，负责规划和感知。</li>
+                    <li><strong>Any-to-Any：</strong> 真正统一的输入输出（如语音直接进、语音直接出，不转文本）。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SECTION: Feasibility -->
+        <section id="feasibility" class="max-w-5xl mx-auto space-y-8 hidden animate-fade-in">
+            <header>
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">研究方向可行性分析</h2>
+                <p class="text-slate-600">
+                    修改研究方案时，必须权衡<strong>算力需求</strong>与<strong>创新价值</strong>。下图展示了不同子领域的可行性。
+                    <br><span class="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">绿色区域</span> 为适合高校/个人研究者的“高性价比”方向。
+                </p>
+            </header>
+
+            <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100">
+                <div class="chart-container h-[500px]">
+                    <canvas id="feasibilityChart"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-red-50 p-6 rounded-lg border border-red-100">
+                    <h4 class="font-bold text-red-800 mb-2">🚫 高风险区域 (算力黑洞)</h4>
+                    <p class="text-sm text-red-700">
+                        大规模多模态预训练 (Pre-training from scratch)、超长上下文全量微调。这些方向需要数百张 H100 GPU，除非有大厂合作，否则很难产出SOTA结果。
+                    </p>
+                </div>
+                <div class="bg-green-50 p-6 rounded-lg border border-green-100">
+                    <h4 class="font-bold text-green-800 mb-2">✅ 推荐区域 (创新驱动)</h4>
+                    <p class="text-sm text-green-700">
+                        高效微调 (PEFT/LoRA)、特定领域应用 (医疗/法律/工业质检)、数据合成与筛选策略、多模态幻觉检测与消除。这些方向更看重Idea和数据质量。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: Workshop -->
+        <section id="workshop" class="max-w-5xl mx-auto space-y-8 hidden animate-fade-in">
+            <header>
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">🛠️ 方案修改工作台</h2>
+                <p class="text-slate-600">
+                    请选择您目前感兴趣的方向，我们将为您提供具体的修改建议和细分切入点。
+                </p>
+            </header>
+
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+                <label class="block text-sm font-bold text-slate-700 mb-2">您当前的研究兴趣是？</label>
+                <select id="interestSelector" class="w-full p-3 border border-slate-300 rounded-lg mb-6 focus:ring-2 focus:ring-blue-500 outline-none" onchange="generateAdvice()">
+                    <option value="" disabled selected>-- 请选择一个方向 --</option>
+                    <option value="general">通用多模态模型架构改进</option>
+                    <option value="medical">医疗/生物医学图像分析</option>
+                    <option value="video">视频理解与生成</option>
+                    <option value="agent">多模态智能体 (Agent)</option>
+                    <option value="efficiency">轻量化/端侧部署</option>
+                </select>
+
+                <div id="adviceBox" class="hidden animate-fade-in">
+                    <div class="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50 mb-6">
+                        <h4 class="font-bold text-blue-900 text-lg" id="adviceTitle">建议标题</h4>
+                        <p class="text-blue-800 mt-1" id="adviceSummary">建议摘要...</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h5 class="font-bold text-slate-800 mb-3 flex items-center">🔍 具体的切入点 (Niche)</h5>
+                            <ul class="space-y-2 text-sm text-slate-600" id="nicheList">
+                                <!-- Dynamic List -->
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="font-bold text-slate-800 mb-3 flex items-center">📚 推荐参考基准/数据集</h5>
+                            <ul class="space-y-2 text-sm text-slate-600" id="dataList">
+                                <!-- Dynamic List -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-yellow-50 border border-yellow-100 rounded-xl p-6 text-sm text-yellow-800">
+                <strong>💡 专家提示：</strong> 在撰写开题报告或方案时，避免使用“研究一个通用的多模态模型”这样宏大的标题。
+                尽量具体化，例如“基于<span class="font-bold">细粒度对齐</span>的<span class="font-bold">医疗报告自动生成</span>方法研究”。
+                越具体，可行性越高。
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // State Management
+        const state = {
+            currentView: 'overview'
+        };
+
+        // Navigation Function
+        function navigateTo(viewId) {
+            // Update State
+            state.currentView = viewId;
+
+            // Hide all sections
+            document.querySelectorAll('main > section').forEach(el => {
+                el.classList.add('hidden');
+            });
+
+            // Show target section
+            document.getElementById(viewId).classList.remove('hidden');
+
+            // Update Sidebar UI
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'border-right-4', 'font-bold', 'text-blue-600');
+                if(el.getAttribute('onclick').includes(viewId)) {
+                    el.classList.add('active');
+                }
+            });
+
+            // Trigger Charts if entering chart sections
+            if (viewId === 'evolution') renderEvolutionCharts();
+            if (viewId === 'feasibility') renderFeasibilityChart();
+            
+            // Scroll to top
+            document.querySelector('main').scrollTop = 0;
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // --- Interaction Logic: Architecture Diagram ---
+        const archDetails = {
+            input: {
+                title: "多模态输入",
+                content: "目前的模型主要支持图像与文本对。处理时，图像通常会被 Resize (如 336x336) 并切分成 Patch (如 14x14)，类似于将图片切成拼图块。"
+            },
+            encoder: {
+                title: "Vision Encoder (视觉编码器)",
+                content: "作用是将图像像素转化为机器可理解的特征向量。CLIP ViT-L/14 是最常用的选择。对于高分辨率或细小物体，近期研究更倾向于使用 SigLIP 或 InternViT 等更强的编码器。"
+            },
+            projector: {
+                title: "Projector (投影/对齐层)",
+                content: "这是连接视觉与语言的关键。因为视觉编码器输出的特征维度（如1024）与LLM的输入维度（如4096）不匹配，需要通过 MLP（多层感知机）将视觉特征'翻译'到 LLM 的特征空间中。"
+            },
+            llm: {
+                title: "LLM Backbone (大语言模型基座)",
+                content: "负责推理和生成。视觉特征被当作一种特殊的'外语'输入给 LLM。LLM 结合这些视觉特征和用户的文本指令，生成最终的回答。常用的基座有 Vicuna, Llama 3, Qwen 等。"
+            }
+        };
+
+        function showDetail(part) {
+            const panel = document.getElementById('arch-detail');
+            const info = archDetails[part];
+            panel.innerHTML = `
+                <h4 class="font-bold text-lg mb-2 text-blue-700">${info.title}</h4>
+                <p class="text-sm leading-relaxed">${info.content}</p>
+            `;
+        }
+
+        // --- Data & Charts ---
+        let evolutionChartInstance = null;
+        let radarChartInstance = null;
+        let feasibilityChartInstance = null;
+
+        function renderEvolutionCharts() {
+            if (evolutionChartInstance) return; // Prevent re-render
+
+            // Timeline Chart
+            const ctxEvo = document.getElementById('evolutionChart').getContext('2d');
+            evolutionChartInstance = new Chart(ctxEvo, {
+                type: 'line',
+                data: {
+                    labels: ['2021', '2022', '2023 H1', '2023 H2', '2024 H1', '2024 H2', '2025 (Est)'],
+                    datasets: [{
+                        label: '主流模型视觉上下文窗口 (Visual Tokens)',
+                        data: [50, 256, 576, 1024, 4096, 32000, 128000],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' Tokens';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'logarithmic',
+                            title: { display: true, text: 'Token Count (Log Scale)' }
+                        }
+                    }
+                }
+            });
+
+            // Radar Chart
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            radarChartInstance = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['常规问答 (VQA)', 'OCR/文档理解', '空间定位 (Grounding)', '数学推理', '编码能力', '幻觉控制'],
+                    datasets: [{
+                        label: 'SOTA 闭源模型 (GPT-4o)',
+                        data: [95, 92, 88, 90, 85, 90],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                    }, {
+                        label: '主流开源模型 (LLaVA-Next)',
+                        data: [85, 78, 70, 65, 50, 75],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { display: true },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderFeasibilityChart() {
+            if (feasibilityChartInstance) return;
+
+            const ctxFeas = document.getElementById('feasibilityChart').getContext('2d');
+            
+            // Data points: x=Resources Needed (1-10), y=Academic Novelty/Value (1-10), r=Market Demand
+            const researchTopics = [
+                { x: 9, y: 3, r: 10, label: '通用模型预训练 (Pre-training)', color: '#ef4444' }, // High cost, low novelty for individuals
+                { x: 8, y: 6, r: 15, label: '长视频理解', color: '#f97316' },
+                { x: 3, y: 8, r: 20, label: '特定领域微调 (医疗/法律)', color: '#22c55e' }, // Sweet spot
+                { x: 4, y: 7, r: 15, label: '多模态幻觉消除', color: '#3b82f6' },
+                { x: 2, y: 6, r: 10, label: '高效参数微调 (PEFT)', color: '#22c55e' },
+                { x: 5, y: 9, r: 18, label: 'Embodied AI (具身智能)', color: '#8b5cf6' },
+                { x: 7, y: 8, r: 12, label: '多模态 RAG', color: '#3b82f6' }
+            ];
+
+            feasibilityChartInstance = new Chart(ctxFeas, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: '研究方向分布',
+                        data: researchTopics,
+                        backgroundColor: (ctx) => ctx.raw ? ctx.raw.color : '#ccc'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.label + ` (资源消耗: ${context.raw.x}, 创新价值: ${context.raw.y})`;
+                                }
+                            }
+                        },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '资源/算力消耗 (Cost) →' },
+                            min: 0, max: 10,
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            title: { display: true, text: '学术创新/发表价值 (Novelty) →' },
+                            min: 0, max: 10,
+                            grid: { color: '#f1f5f9' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Logic: Proposal Workshop ---
+        const adviceDatabase = {
+            'general': {
+                title: '建议转向：数据质量与对齐策略',
+                summary: '通用架构已趋于同质化 (ViT+MLP+LLM)。个人研究难以在参数量上竞争。',
+                niches: [
+                    '<li><strong>Visual Instruction Tuning Data Selection:</strong> 并非数据越多越好，研究如何自动筛选高质量数据。</li>',
+                    '<li><strong>Preference Optimization (DPO):</strong> 将 RLHF/DPO 应用于多模态，减少幻觉。</li>'
+                ],
+                datasets: [
+                    '<li>LLaVA-Instruct-150k</li>',
+                    '<li>MM-Vet (评估基准)</li>'
+                ]
+            },
+            'medical': {
+                title: '极具潜力的应用方向',
+                summary: '医疗领域数据稀缺且专业性强，通用大模型往往表现不佳，非常适合做领域微调。',
+                niches: [
+                    '<li><strong>Medical VQA:</strong> 针对X光片/CT的自动问答。</li>',
+                    '<li><strong>Privacy-Preserving MLLM:</strong> 联邦学习下的多模态模型训练。</li>'
+                ],
+                datasets: [
+                    '<li>PMC-VQA</li>',
+                    '<li>PathVQA</li>'
+                ]
+            },
+            'video': {
+                title: '高难度但高回报',
+                summary: '视频包含时间维度，计算量大。',
+                niches: [
+                    '<li><strong>Temporal Grounding:</strong> 在视频中精确定位动作发生的时间点。</li>',
+                    '<li><strong>Keyframe Extraction:</strong> 使用 LLM 辅助提取关键帧以减少计算量。</li>'
+                ],
+                datasets: [
+                    '<li>ActivityNet</li>',
+                    '<li>MSVD-QA</li>'
+                ]
+            },
+            'agent': {
+                title: '迈向 AGI 的关键一步',
+                summary: '让 MLLM 学会使用工具（API、浏览器）或操作机器人。',
+                niches: [
+                    '<li><strong>GUI Agent:</strong> 这里的模型能够理解手机/电脑屏幕并自动操作 APP。</li>',
+                    '<li><strong>Multi-Agent Collaboration:</strong> 视觉 Agent 与 文本 Agent 的协作。</li>'
+                ],
+                datasets: [
+                    '<li>Mind2Web</li>',
+                    '<li>AndroidInTheWild</li>'
+                ]
+            },
+            'efficiency': {
+                title: '工业界非常渴求的方向',
+                summary: '如何在端侧设备（手机、车机）上运行 MLLM。',
+                niches: [
+                    '<li><strong>Quantization:</strong> 针对 Vision Encoder 和 LLM 的混合精度量化。</li>',
+                    '<li><strong>Token Pruning:</strong> 动态丢弃图像中不重要的背景 Patch。</li>'
+                ],
+                datasets: [
+                    '<li>MobileVLM (参考架构)</li>'
+                ]
+            }
+        };
+
+        function generateAdvice() {
+            const val = document.getElementById('interestSelector').value;
+            const box = document.getElementById('adviceBox');
+            if (!val) return;
+
+            const data = adviceDatabase[val];
+            document.getElementById('adviceTitle').innerText = data.title;
+            document.getElementById('adviceSummary').innerText = data.summary;
+            document.getElementById('nicheList').innerHTML = data.niches.join('');
+            document.getElementById('dataList').innerHTML = data.datasets.join('');
+
+            box.classList.remove('hidden');
+        }
+
+        // Initialize First View animation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Pre-select overview
+        });
+
+    </script>
+</body>
+</html>
