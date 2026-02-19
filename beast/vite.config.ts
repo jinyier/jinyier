@@ -5,8 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      // 部署到子路径时必填，例如 GitHub Pages 项目页: /jinyier/beast/
-      base: process.env.VITE_BASE_PATH || '/jinyier/beast/',
+      // 使用相对路径，dist 放到任意子路径下都能正确加载资源（如 .../beast/、.../dist/ 等）
+      base: process.env.VITE_BASE_PATH ?? './',
       server: {
         port: 3000,
         host: '0.0.0.0',
