@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { BeastData } from "../types.ts";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// 构建时由 Vite 注入，需在 .env.local 中设置 GEMINI_API_KEY 并重新 npm run build 后部署
+const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
+const ai = new GoogleGenAI({ apiKey });
 
 export const generateBeastImage = async (data: BeastData): Promise<string | null> => {
   try {

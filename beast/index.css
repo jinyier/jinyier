@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 与原先 index.html 内联样式一致 */
+body {
+  font-family: 'Lato', sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+h1, h2, h3, button {
+  font-family: 'Cinzel', serif;
+}
