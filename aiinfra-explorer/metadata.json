@@ -1,0 +1,7 @@
+{
+  "name": "AIInfra Explorer",
+  "description": "A professional tool for researchers and engineers to map the evolution of Large Language Model infrastructure concepts through paper analysis and search-grounded insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
